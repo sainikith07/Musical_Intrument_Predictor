@@ -6,7 +6,7 @@
 ## 🌐 Live Demo
 
 🔗 **Live Application:**  
-https://your-live-demo-link.com  
+https://cnn-based-musical-instrument-detect.vercel.app/ 
 
 
 
