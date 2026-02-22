@@ -1,3 +1,8 @@
+# ==========================================================
+# InstruNet AI – Professional Dark Deployment Edition
+# CNN-Based Musical Instrument Recognition System
+# ==========================================================
+
 import streamlit as st
 import numpy as np
 import librosa
@@ -12,14 +17,19 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.platypus import TableStyle
+from datetime import datetime
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="InstruNet AI", page_icon="🎵", layout="wide")
+st.set_page_config(
+    page_title="InstruNet AI | Professional Edition",
+    page_icon="🎵",
+    layout="wide"
+)
 
 # =========================
-# GOOGLE DRIVE MODEL DOWNLOAD (LARGE FILE SAFE)
+# GOOGLE DRIVE MODEL DOWNLOAD (SAFE FOR LARGE FILES)
 # =========================
 MODEL_PATH = "instrument_multilabel.keras"
 FILE_ID = "1Zwx1bX33jRWPVGre9UxtEIMftkNKBgqZ"
@@ -27,10 +37,9 @@ FILE_ID = "1Zwx1bX33jRWPVGre9UxtEIMftkNKBgqZ"
 def download_model_from_drive(file_id, destination):
     URL = "https://drive.google.com/uc?export=download"
     session = requests.Session()
-
     response = session.get(URL, params={"id": file_id}, stream=True)
-    token = None
 
+    token = None
     for key, value in response.cookies.items():
         if key.startswith("download_warning"):
             token = value
@@ -45,7 +54,7 @@ def download_model_from_drive(file_id, destination):
                 f.write(chunk)
 
 if not os.path.exists(MODEL_PATH):
-    st.info("📥 Downloading model... Please wait.")
+    st.info("📥 Downloading model from Google Drive...")
     download_model_from_drive(FILE_ID, MODEL_PATH)
     st.success("✅ Model downloaded successfully!")
 
@@ -54,7 +63,7 @@ if not os.path.exists(MODEL_PATH):
 # =========================
 model = tf.keras.models.load_model(MODEL_PATH)
 
-# IMPORTANT: Class order must match training
+# IMPORTANT: Must match training order
 CLASSES = ["flute", "guitar", "piano", "violin"]
 
 ICON_MAP = {
@@ -64,23 +73,35 @@ ICON_MAP = {
     "violin": "🎻"
 }
 
+COLOR_MAP = {
+    "flute": "#06B6D4",
+    "guitar": "#3B82F6",
+    "piano": "#FACC15",
+    "violin": "#A855F7"
+}
+
 MAX_PAD_LEN = 128
 CHUNK_DURATION = 1
 
 # =========================
-# DARK UI
+# DARK THEME UI
 # =========================
 st.markdown("""
 <style>
-body { background-color: #0E1117; color: white; }
-h1, h2, h3 { color: #00FFAA; }
+body { background-color: #0F172A; color: white; }
+h1, h2, h3 { color: #06B6D4; }
 .stButton>button {
-    background-color: #00FFAA;
-    color: black;
+    background: linear-gradient(90deg,#7C3AED,#06B6D4);
+    color: white;
     border-radius: 8px;
+    border: none;
 }
 </style>
 """, unsafe_allow_html=True)
+
+st.title("🎵 InstruNet AI – Premium Deployment Edition")
+st.markdown("CNN-Based Musical Instrument Recognition System")
+st.markdown("---")
 
 # =========================
 # PREPROCESS FUNCTION
@@ -98,14 +119,11 @@ def preprocess_chunk(y_chunk, sr):
 
     mel_input = mel_db[..., np.newaxis]
     mel_input = np.expand_dims(mel_input, axis=0)
-
     return mel_input
 
 # =========================
-# UI START
+# FILE UPLOAD
 # =========================
-st.title("🎵 InstruNet AI - Premium Deployment Edition")
-
 uploaded_file = st.file_uploader("Upload WAV file", type=["wav"])
 
 if uploaded_file:
@@ -116,9 +134,9 @@ if uploaded_file:
     y, sr = librosa.load("temp.wav", duration=5)
     st.audio(uploaded_file)
 
-    # -----------------------
-    # Timeline Prediction
-    # -----------------------
+    # =========================
+    # TIMELINE PREDICTION
+    # =========================
     st.subheader("📊 Instrument Probability Timeline")
 
     chunk_samples = int(CHUNK_DURATION * sr)
@@ -139,26 +157,31 @@ if uploaded_file:
     avg_prediction = np.mean(probabilities, axis=0)
     top_index = np.argmax(avg_prediction)
 
+    # =========================
+    # TIMELINE CHART
+    # =========================
     fig_timeline, ax_timeline = plt.subplots()
     for i, instrument in enumerate(CLASSES):
-        ax_timeline.plot(time_axis, probabilities[:, i], label=instrument)
+        ax_timeline.plot(time_axis, probabilities[:, i], 
+                         label=instrument, 
+                         color=COLOR_MAP[instrument])
     ax_timeline.set_ylim([0, 1])
     ax_timeline.set_xlabel("Time (seconds)")
     ax_timeline.set_ylabel("Probability")
     ax_timeline.legend()
     st.pyplot(fig_timeline)
 
-    # -----------------------
-    # Dominant Instrument
-    # -----------------------
+    # =========================
+    # DOMINANT INSTRUMENT
+    # =========================
     st.success(
         f"Dominant Instrument: {ICON_MAP[CLASSES[top_index]]} "
         f"{CLASSES[top_index].capitalize()}"
     )
 
-    # -----------------------
-    # Probability Metrics
-    # -----------------------
+    # =========================
+    # PROBABILITY METRICS
+    # =========================
     st.subheader("Instrument Probabilities")
 
     for i, instrument in enumerate(CLASSES):
@@ -168,25 +191,23 @@ if uploaded_file:
             value=f"{prob*100:.1f}%"
         )
 
-    # -----------------------
-    # Waveform
-    # -----------------------
+    # =========================
+    # WAVEFORM
+    # =========================
     st.subheader("🎵 Audio Waveform")
-
     fig_wave, ax_wave = plt.subplots()
     ax_wave.plot(y)
     ax_wave.set_title("Amplitude vs Time")
     st.pyplot(fig_wave)
 
-    # -----------------------
-    # Spectrogram
-    # -----------------------
+    # =========================
+    # SPECTROGRAM
+    # =========================
     st.subheader("🎼 Mel Spectrogram")
-
     mel_full = librosa.feature.melspectrogram(y=y, sr=sr)
     mel_full_db = librosa.power_to_db(mel_full, ref=np.max)
 
-    fig_spec, ax_spec = plt.subplots(figsize=(10, 4))
+    fig_spec, ax_spec = plt.subplots(figsize=(10,4))
     img = librosa.display.specshow(
         mel_full_db,
         sr=sr,
@@ -197,16 +218,21 @@ if uploaded_file:
     fig_spec.colorbar(img, ax=ax_spec)
     st.pyplot(fig_spec)
 
-    # -----------------------
-    # Pie Chart
-    # -----------------------
+    # =========================
+    # PIE CHART
+    # =========================
     st.subheader("🥧 Instrument Distribution")
 
     normalized = avg_prediction / (np.sum(avg_prediction) + 1e-6)
     explode = [0.1 if i == top_index else 0 for i in range(len(CLASSES))]
 
     fig_pie, ax_pie = plt.subplots()
-    wedges, _ = ax_pie.pie(normalized, explode=explode, startangle=90)
+    wedges, _ = ax_pie.pie(
+        normalized,
+        explode=explode,
+        colors=[COLOR_MAP[i] for i in CLASSES],
+        startangle=90
+    )
     ax_pie.legend(
         wedges,
         [f"{CLASSES[i]} ({normalized[i]*100:.1f}%)" for i in range(len(CLASSES))],
@@ -215,15 +241,16 @@ if uploaded_file:
     )
     st.pyplot(fig_pie)
 
-    # -----------------------
-    # JSON Download
-    # -----------------------
+    # =========================
+    # JSON DOWNLOAD
+    # =========================
     report_data = {
         "average_probabilities": {
             instrument: float(avg_prediction[i])
             for i, instrument in enumerate(CLASSES)
         },
-        "dominant_instrument": CLASSES[top_index]
+        "dominant_instrument": CLASSES[top_index],
+        "generated_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
     st.download_button(
@@ -232,63 +259,3 @@ if uploaded_file:
         file_name="instrument_analysis.json",
         mime="application/json"
     )
-
-    # -----------------------
-    # PDF Report
-    # -----------------------
-    if st.button("📄 Generate Professional PDF Report"):
-
-        pdf_filename = "InstruNet_AI_Report.pdf"
-        fig_wave.savefig("waveform.png")
-        fig_spec.savefig("spectrogram.png")
-        fig_pie.savefig("pie.png")
-        fig_timeline.savefig("timeline.png")
-
-        doc = SimpleDocTemplate(pdf_filename)
-        elements = []
-        styles = getSampleStyleSheet()
-
-        if os.path.exists("logo.png"):
-            elements.append(Image("logo.png", width=1.5*inch, height=1.5*inch))
-            elements.append(Spacer(1, 0.3*inch))
-
-        elements.append(Paragraph("<b>InstruNet AI Report</b>", styles["Title"]))
-        elements.append(Spacer(1, 0.3*inch))
-
-        elements.append(Paragraph(f"<b>Dominant:</b> {CLASSES[top_index]}", styles["Heading2"]))
-        elements.append(Spacer(1, 0.3*inch))
-
-        table_data = [["Instrument", "Probability (%)"]]
-        for i, inst in enumerate(CLASSES):
-            table_data.append([inst, f"{avg_prediction[i]*100:.2f}"])
-
-        table = Table(table_data)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-            ('GRID', (0,0), (-1,-1), 1, colors.black)
-        ]))
-
-        elements.append(table)
-        elements.append(Spacer(1, 0.4*inch))
-
-        elements.append(Image("timeline.png", width=5.5*inch, height=3*inch))
-        elements.append(Spacer(1, 0.3*inch))
-        elements.append(Image("waveform.png", width=5.5*inch, height=3*inch))
-        elements.append(Spacer(1, 0.3*inch))
-        elements.append(Image("spectrogram.png", width=5.5*inch, height=3*inch))
-        elements.append(Spacer(1, 0.3*inch))
-        elements.append(Image("pie.png", width=4*inch, height=4*inch))
-
-        doc.build(elements)
-
-        with open(pdf_filename, "rb") as f:
-            st.download_button(
-                label="📥 Download Full PDF Report",
-                data=f,
-                file_name="InstruNet_AI_Report.pdf",
-                mime="application/pdf"
-            )
-
-        for file in ["waveform.png", "spectrogram.png", "pie.png", "timeline.png"]:
-            if os.path.exists(file):
-                os.remove(file)
